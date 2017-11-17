@@ -1,23 +1,17 @@
 package dcc171.aula16.exerciciobd;
 
-import java.sql.Connection;
 import java.sql.Date;
-import java.sql.DriverManager;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.sql.Statement;
 import java.text.SimpleDateFormat;
-import java.util.Scanner;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import javax.swing.table.DefaultTableModel;
 
 public class frmPrincipal extends javax.swing.JFrame {
-    private static Connection connection = null;
-    private static String driverURL = "jdbc:derby://localhost:1527/2017-dcc171";
-            
-    public frmPrincipal() {
+    VisitanteDAO dao;
+    
+    public frmPrincipal() throws Exception {
+        this.dao = new VisitaDAOJDBC();
         initComponents();
     }
     @SuppressWarnings("unchecked")
@@ -159,38 +153,32 @@ public class frmPrincipal extends javax.swing.JFrame {
     }// </editor-fold>//GEN-END:initComponents
 
     private void formWindowActivated(java.awt.event.WindowEvent evt) {//GEN-FIRST:event_formWindowActivated
-        
         try {
-            //Carrega driver
-            Class.forName("org.apache.derby.jdbc.ClientDriver");
-            System.out.println("Driver carregado com sucesso!");
-            
-            //Conecta no banco
-            connection = DriverManager.getConnection(driverURL, "usuario", "12345");
             exibeNaGrid();
-            System.out.println("Carregado com sucesso");
         } catch (Exception ex) {
-            Logger.getLogger(frmPrincipal.class.getName()).log(Level.SEVERE, "Driver de banco não disponível!");
             Logger.getLogger(frmPrincipal.class.getName()).log(Level.SEVERE, null, ex);
         }
-            
+                    
     }//GEN-LAST:event_formWindowActivated
 
     private void btnEntradaMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_btnEntradaMouseClicked
         if ((!edtNome.getText().isEmpty()) || (!edtIdade.getText().isEmpty())) {
-            Statement statement;
             try {
-                statement = connection.createStatement();
-                statement.executeUpdate("Insert into visitante(nome, idade) values "
-                        + "('" + edtNome.getText() + "', "
-                        + edtIdade.getText() + ")");
-                exibeNaGrid();
-                edtIdade.setText("");
-                edtNome.setText("");
-            } catch (SQLException ex) {
+                Visitante v = new Visitante();
+                v.setNome(edtNome.getText());
+                v.setIdade(Integer.parseInt(edtIdade.getText()));
+                dao.criar(v);                
+            } catch (Exception ex) {
                 Logger.getLogger(frmPrincipal.class.getName()).log(Level.SEVERE, null, ex);
             }
             
+            try {
+                exibeNaGrid();
+            } catch (Exception ex) {
+                Logger.getLogger(frmPrincipal.class.getName()).log(Level.SEVERE, null, ex);
+            }
+            edtIdade.setText("");
+            edtNome.setText("");
         }
     }//GEN-LAST:event_btnEntradaMouseClicked
 
@@ -204,52 +192,53 @@ public class frmPrincipal extends javax.swing.JFrame {
     private void btnSaidaMouseClicked(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_btnSaidaMouseClicked
         int linhaSelecionada = grdDados.getSelectedRow();  
         int idSelecionado = Integer.parseInt(grdDados.getValueAt(linhaSelecionada, 0).toString());
-        Statement statement;
-        try {
-            statement = connection.createStatement();
-            statement.executeUpdate("Update VISITANTE set saida = current_timestamp where id = " + idSelecionado);
-            
-            edtIdade.setText("");
-            edtNome.setText("");
+        
+        try {            
+            dao.saida(idSelecionado);                
             exibeNaGrid();
-            btnSaida.setEnabled(false);
-
-        } catch (SQLException ex) {
+        } catch (Exception ex) {
             Logger.getLogger(frmPrincipal.class.getName()).log(Level.SEVERE, null, ex);
-        } 
+        }
+        edtIdade.setText("");
+        edtNome.setText("");
+        btnSaida.setEnabled(false);
+
     }//GEN-LAST:event_btnSaidaMouseClicked
 
     private void btnEntradaActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnEntradaActionPerformed
         // TODO add your handling code here:
     }//GEN-LAST:event_btnEntradaActionPerformed
     
-    private void exibeNaGrid(){
-        try {
-            DefaultTableModel model =(DefaultTableModel) grdDados.getModel();
-            model.setNumRows(0);
+    private void exibeNaGrid() throws Exception{
+        
+        DefaultTableModel model =(DefaultTableModel) grdDados.getModel();
+        model.setNumRows(0);
+
+        List<Visitante> visit = dao.listarTodos();
+        for(Visitante v : visit){
+            SimpleDateFormat fmt = new SimpleDateFormat("dd/MM/yyyy"); 
+            String dataEntrada = fmt.format(v.getEntrada());
             
-            Statement prepstatement = connection.createStatement();
-            
-            ResultSet results = prepstatement.executeQuery("Select id, NOME, IDADE, ENTRADA, SAIDA from USUARIO.VISITANTE");
-            while(results.next()){
-                Date dtEntrada = results.getDate("entrada");
-                SimpleDateFormat formato = new SimpleDateFormat("dd/MM/yyyy");
-                String dataEntradaformatada = formato.format(dtEntrada);
-                
-               model.addRow(new Object[]{ 
-                    //retorna os dados da tabela do BD, cada campo e um coluna.
-                   results.getString("id"), 
-                   results.getString("nome"),
-                   results.getInt("idade"),
-                   dataEntradaformatada,
-                   results.getTimestamp("saida")
-                }); 
-               
-            }  
-            
-        } catch (SQLException ex) {
-            Logger.getLogger(frmPrincipal.class.getName()).log(Level.SEVERE, null, ex);
-        };
+            model.addRow(new Object[]{
+                "",
+                v.getNome(),
+                v.getIdade(),
+                dataEntrada,
+                v.getSaida()
+            });
+        }
+
+        /*while(results.next()){
+
+           model.addRow(new Object[]{ 
+                //retorna os dados da tabela do BD, cada campo e um coluna.
+               results.getString("id"), 
+               results.getString("nome"),
+               results.getInt("idade"),
+               dataEntradaformatada,
+               results.getTimestamp("saida")
+            });
+        }*/  
     }
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
